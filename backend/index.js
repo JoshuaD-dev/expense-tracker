@@ -7,6 +7,8 @@ require("dotenv").config();
 
 const app = express();
 
+app.set("trust proxy", 1);
+
 app.use(cors({
   origin: ["http://localhost:5173", "https://expense-tracker-one-mauve-56.vercel.app"],
   credentials: true,
@@ -19,10 +21,9 @@ app.use(session({
   cookie: {
     secure: true,
     sameSite: "none",
+    maxAge: 24 * 60 * 60 * 1000,
   },
 }));
-
-// ── Auth Routes ──────────────────────────────
 
 // Register
 app.post("/register", async (req, res) => {
@@ -40,7 +41,10 @@ app.post("/register", async (req, res) => {
       [username, hashed]
     );
     req.session.user = result.rows[0];
-    res.status(201).json(result.rows[0]);
+    req.session.save((err) => {
+      if (err) return res.status(500).json({ error: "Session error" });
+      res.status(201).json(result.rows[0]);
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -62,7 +66,10 @@ app.post("/login", async (req, res) => {
       return res.status(400).json({ error: "Incorrect password" });
     }
     req.session.user = { id: user.id, username: user.username };
-    res.json({ id: user.id, username: user.username });
+    req.session.save((err) => {
+      if (err) return res.status(500).json({ error: "Session error" });
+      res.json({ id: user.id, username: user.username });
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -83,9 +90,7 @@ app.get("/me", (req, res) => {
   }
 });
 
-// ── Expense Routes ───────────────────────────
-
-// Get all expenses for logged in user
+// Get all expenses
 app.get("/expenses", async (req, res) => {
   if (!req.session.user) {
     return res.status(401).json({ error: "Not logged in" });
@@ -101,7 +106,7 @@ app.get("/expenses", async (req, res) => {
   }
 });
 
-// Add an expense
+// Add expense
 app.post("/expenses", async (req, res) => {
   if (!req.session.user) {
     return res.status(401).json({ error: "Not logged in" });
@@ -118,7 +123,7 @@ app.post("/expenses", async (req, res) => {
   }
 });
 
-// Delete an expense
+// Delete expense
 app.delete("/expenses/:id", async (req, res) => {
   if (!req.session.user) {
     return res.status(401).json({ error: "Not logged in" });

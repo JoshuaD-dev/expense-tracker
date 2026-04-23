@@ -16,7 +16,8 @@ function Dashboard({ user, onLogout }) {
       const res = await api.get("/expenses");
       setExpenses(res.data);
     } catch (err) {
-      setError("Failed to load expenses");
+      console.log("Session expired or not logged in");
+      setExpenses([]);
     }
   }
 
